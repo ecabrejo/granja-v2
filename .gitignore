@@ -1,0 +1,22 @@
+# Credenciales — NUNCA subir
+.env
+workers/**/.env
+*.env
+
+# Datos de estado local
+*.pid
+*.log
+seen_ids.json
+proposals.json
+selector_results.json
+scout_results.json
+__pycache__/
+*.pyc
+
+# Venv
+venv/
+
+# Backups
+backups/
+venv
+workers/**/positions_bootstrap.json

@@ -193,12 +193,15 @@ def on_worker_event(worker_id: str, event_type: str, data: dict):
         ws.wallet_last_activity_ts   = time.time()
         ws.wallet_inactivity_alerted = False
         bal_str = f"${ws.balance:.2f}" if ws.balance else "N/A"
-        tg(
-            f"✅ <b>[{worker_id}] COPY #{ws.copies}</b>\n"
-            f"📌 {data['slug'][:40]}\n"
-            f"💵 ${data['usd']} @{data['price']:.3f}\n"
-            f"💰 Balance: {bal_str}"
-        )
+        log.info(f"[{worker_id}] COPY #{ws.copies} | {data['slug'][:40]} | ${data['usd']} @{data['price']:.3f}")
+        # TG: solo primera copia del día o cada 10
+        if ws.copies == 1 or ws.copies % 10 == 0:
+            tg(
+                f"✅ <b>[{worker_id}] COPY #{ws.copies}</b>\n"
+                f"📌 {data['slug'][:40]}\n"
+                f"💵 ${data['usd']} @{data['price']:.3f}\n"
+                f"💰 Balance: {bal_str}"
+            )
 
     elif event_type == "copy_fail":
         ws.errors  += 1
@@ -211,11 +214,7 @@ def on_worker_event(worker_id: str, event_type: str, data: dict):
 
     elif event_type == "sell_ok":
         ws.wallet_last_activity_ts = time.time()
-        tg(
-            f"📤 <b>[{worker_id}] SELL copiado</b>\n"
-            f"📌 {data['slug'][:40]}\n"
-            f"💰 size={data['size']:.4f} @{data['price']:.3f}"
-        )
+        log.info(f"[{worker_id}] SELL OK | {data['slug'][:40]} | size={data['size']:.4f} @{data['price']:.3f}")
 
     elif event_type == "sell_fail":
         tg(
@@ -226,14 +225,10 @@ def on_worker_event(worker_id: str, event_type: str, data: dict):
 
     elif event_type == "no_cash":
         bal = data.get("balance", 0)
-        last_no_cash = getattr(ws, "_last_no_cash_tg", 0)
+        last_no_cash = getattr(ws, "_last_no_cash_log", 0)
         if time.time() - last_no_cash > 1800:
-            ws._last_no_cash_tg = time.time()
-            tg(
-                f"⏸ <b>[{worker_id}] Sin cash disponible</b>\n"
-                f"💰 Cash: ${bal:.2f} — insuficiente para nuevas órdenes\n"
-                f"⏳ Esperando resolución de posiciones abiertas..."
-            )
+            ws._last_no_cash_log = time.time()
+            log.info(f"[{worker_id}] sin cash | ${bal:.2f}")
 
     elif event_type == "market_resolved":
         ws.running = False
@@ -468,38 +463,21 @@ def apply_proposal(worker_id: str, candidato_idx: int = 0) -> bool:
 
 # ── Heartbeat ─────────────────────────────────────────────
 def heartbeat_loop():
-    """Envía estado de toda la granja cada 30 minutos (solo si hay workers activos)."""
+    """
+    Heartbeat silencioso — solo log interno cada 30 min.
+    Telegram solo habla cuando importa.
+    Estado disponible siempre via /status bajo demanda.
+    """
     from bot_granjav2 import get_balance
     while True:
         time.sleep(1800)
-        activos = [ws for ws in granja.values() if ws.running]
-        if not activos:
-            continue
-        lines = ["💓 <b>Claudio — Estado granja</b>"]
         for wid, ws in granja.items():
-            estado = "🟢 corriendo" if ws.running else ("⏸ pausado" if ws.paused else "🔴 detenido")
+            if not ws.running:
+                continue
             bal = get_balance(ws.worker_dir)
             if bal is not None:
                 ws.balance = bal
-            bal_str = f"${ws.balance:.2f}" if ws.balance is not None else "N/A"
-
-            # Info de wallet target
-            try:
-                cfg = json.loads((Path(ws.worker_dir) / "config.json").read_text())
-                wallets = cfg.get("target_wallets", [cfg.get("target_wallet", "?")])
-                wallet_str = wallets[0][:16] + "..." if wallets else "?"
-            except:
-                wallet_str = "?"
-
-            horas_inactiva = (time.time() - ws.wallet_last_activity_ts) / 3600
-            actividad_str = f"activa hace {horas_inactiva:.0f}h" if ws.running else ""
-
-            lines.append(
-                f"\n[{wid}] {estado}\n"
-                f"  💰 {bal_str} | 📊 CP: {ws.copies}/{ws.signals}\n"
-                f"  👛 {wallet_str} {actividad_str}"
-            )
-        tg("\n".join(lines))
+            log.info(f"[{wid}] heartbeat | bal=${ws.balance:.2f} | cp={ws.copies}/{ws.signals}")
 
 # ── Listener de comandos Telegram ─────────────────────────
 _tg_offset = 0

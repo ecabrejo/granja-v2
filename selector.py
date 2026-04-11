@@ -216,6 +216,14 @@ def calcular_score_wallet(addr: str, datos_pool: dict) -> dict | None:
         if updown_ratio > 0.3:
             return None
 
+        # Filtrar whales — size promedio > $50 por BUY indica capital incopiable
+        buys_all = [a for a in acts if a.get("side", "").upper() == "BUY"]
+        sizes = [float(a.get("usdcSize", 0) or 0) for a in buys_all if float(a.get("usdcSize", 0) or 0) > 0]
+        if sizes:
+            avg_size = sum(sizes) / len(sizes)
+            if avg_size > 50:
+                return None  # whale — posiciones grandes mueven el mercado antes de que copiemos
+
         # WR aproximado: para cada BUY, verificar si el midpoint actual > precio entrada
         # Solo en los últimos 20 trades para no hacer demasiadas llamadas
         buys = [a for a in acts if a.get("side", "").upper() == "BUY"][:20]
@@ -462,6 +470,24 @@ def run(modo_auto: bool = False) -> list[dict]:
         print("❌ Sin candidatos después de verificar liquidez de mercados.")
         return []
 
+    # ── Diversificar top: máx 3 wallets por mercado ──
+    # Garantiza variedad aunque un mercado domine por volumen
+    MAX_POR_MERCADO = 3
+    conteo_mercado = {}
+    top_diverso = []
+    for c in candidatos_finales:  # ya vienen ordenados por estrellas+score
+        slug = c["slug"]
+        if conteo_mercado.get(slug, 0) < MAX_POR_MERCADO:
+            conteo_mercado[slug] = conteo_mercado.get(slug, 0) + 1
+            top_diverso.append(c)
+        if len(top_diverso) >= 20:
+            break
+    candidatos_finales = top_diverso
+
+    # Contar mercados representados
+    mercados_rep = len(set(c["slug"] for c in candidatos_finales))
+    print(f"   (top diversificado: {len(candidatos_finales)} candidatos en {mercados_rep} mercados distintos)\n")
+
     # ── Imprimir tabla ──
     print(f"{'#':<3} {'STARS':<6} {'SCORE':>6} {'WR':>5} {'EDGE':>5} {'REC':>5} {'BUYs':>4} {'Hist':>5} {'Hace':>5} {'Mid':>5} {'Horas':>6}")
     print("─" * 90)
@@ -619,3 +645,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

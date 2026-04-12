@@ -239,13 +239,40 @@ Los market makers ponen órdenes límite lejos del precio. El spread no es una m
 
 ---
 
-## Próximas prioridades
+## Plan de crecimiento por hitos
 
-1. **Wallet pool automático** — que selector persista candidatas evaluadas en cada corrida
-2. **worker_02** — cuando el cash disponible llegue a $100
-3. **Redeem automático o semi-automático** — posiciones ganadas que requieren acción manual
-4. **Daily report a las 08:00 UTC** — resumen de PnL y estado vía Telegram
-5. **Granja Meteo** — proyecto paralelo de weather trading (separado de V2)
+### 🎯 Hito actual — $100 (en curso)
+**Foco: estabilidad y selección de calidad**
+- [x] Selector market-first con score propio
+- [x] Filtro de whales (size promedio >$50 descartado)
+- [x] Filtro de una posición por mercado
+- [x] Notificaciones Telegram silenciosas
+- [x] wallet_pool.json con historial de wallets usadas
+- [ ] Daily report 08:00 UTC (solo si hubo actividad)
+- [ ] Drawdown protection — pausa si balance cae 20% vs inicio del ciclo
+- [ ] Fix TG_POLL_ERROR — Claudio no debe caer por timeouts de Telegram
+- [ ] Log de decisiones cronológico
+
+### 🎯 Hito $200 — Escalar con seguridad
+**Foco: segundo worker + mejoras de infraestructura**
+- [ ] **worker_02** — segunda wallet siguiendo mercado distinto simultáneamente
+- [ ] **Sizing proporcional** — `trade_usd = max($1, cash_disponible * 0.03)` en lugar de $1 fijo. Nota: Polymarket tiene orden mínima de $1 — no implementar antes de tener capital suficiente para que el 3% supere ese mínimo consistentemente
+- [ ] **Lifecycle GREEN/YELLOW/RED** — monitoreo WR del worker cada 5 min, alerta si cae <55%, pausa si cae <40%
+- [ ] **Redeem semi-automático** — detectar posiciones ganadoras resueltas y alertar con botón de confirmación
+- [ ] **Filtro de categoría en selector** — priorizar Politics/Finance/Weather sobre Sports/Entertainment
+
+### 🎯 Hito $500 — Optimización avanzada
+**Foco: edge más sofisticado**
+- [ ] **Basket de wallets** — seguir 3-5 wallets simultáneamente, señal más fuerte cuando coinciden
+- [ ] **Order aggregation** — agrupar señales en ventanas de 30s para reducir costos (relevante a mayor volumen)
+- [ ] **Pool curado manual** — 10-20 wallets pre-validadas con criterios estrictos (WR>60%, >4 meses track record, <100 trades/mes)
+- [ ] **Motor dual A+B** — Pool curado (monitoreo continuo) + Scout automático en ventanas horarias
+
+### 🎯 Hito $1000 — Explorar nuevas estrategias
+**Foco: diversificación de estrategias**
+- [ ] **Arbitraje combinatorio** — explotar mispricings entre outcomes relacionados (ver paper Saguillo et al. 2025, $40M extraídos)
+- [ ] **Granja Meteo en live** — si dry-run valida edge en NYC/Chicago/Seattle
+- [ ] **worker_03+** — escalar número de workers con capital suficiente
 
 ---
 

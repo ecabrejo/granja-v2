@@ -408,6 +408,12 @@ def run_worker(worker_dir: str, log: logging.Logger, event_callback, stop_event=
                         log.info(f"[{worker_id}] SKIP | demasiado_lejano | {horas_restantes:.0f}h | {slug[:40]}")
                         continue
 
+                    # Temperatura > 48h → bloquear (capital bloqueado sin edge real)
+                    is_temp = 'temperature' in slug or 'highest-temp' in slug
+                    if is_temp and horas_restantes > 48:
+                        log.info(f"[{worker_id}] SKIP | temperatura_lejana | {horas_restantes:.0f}h | {slug[:40]}")
+                        continue
+
                 # ── Procesar BUY ──
                 if side == "BUY":
                     # Una posición por mercado máximo — evitar promediar pérdidas

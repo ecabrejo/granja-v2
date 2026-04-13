@@ -60,6 +60,18 @@
       "resultado": "descartada \u2014 whale, $150-350 por trade, solo BUYs, incopiable",
       "reactivar": false,
       "notas": "Parece buena en el selector pero opera con capital grande. Precio ya se mueve antes de copiar."
+    },
+    {
+      "addr": "0xfcc096cfe75de4b14c189c02dbfafc535b8a9c8f",
+      "fecha_inicio": "2026-04-12",
+      "fecha_fin": "2026-04-13",
+      "score_selector": 0.832,
+      "wr_aprox": 0.58,
+      "edge": 1.45,
+      "diversidad": 32,
+      "resultado": "bueno \u2014 Masters golf, crypto, Bitcoin. 13 copias ejecutadas.",
+      "reactivar": true,
+      "notas": "Opera golf, crypto, LoL. Diversificado. avg=$8 por trade."
     }
   ],
   "candidatas_en_espera": [

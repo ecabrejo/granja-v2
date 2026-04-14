@@ -56,9 +56,9 @@ def slug_es_valido(slug: str) -> bool:
     s = slug.lower()
     return not any(kw in s for kw in SLUG_BLACKLIST)
 
-def score_composite(wr: float, edge: float, recency: float, diversidad: float) -> float:
-    """0.4×WR + 0.3×edge + 0.2×recency + 0.1×diversidad"""
-    return round(0.4 * wr + 0.3 * edge + 0.2 * recency + 0.1 * diversidad, 4)
+def score_composite(wr: float, edge: float, recency: float, diversidad: float, category_focus: float = 0.5) -> float:
+    """0.35×WR_filtrado + 0.25×edge + 0.20×recency + 0.10×diversidad + 0.10×category_focus"""
+    return round(0.35 * wr + 0.25 * edge + 0.20 * recency + 0.10 * diversidad + 0.10 * category_focus, 4)
 
 # ─────────────────────────────────────────────────────────
 #  FASE 1 — MERCADOS ACTIVOS VÁLIDOS
@@ -284,7 +284,19 @@ def calcular_score_wallet(addr: str, datos_pool: dict) -> dict | None:
         hace_min = int((time.time() - datos_pool["last_ts"]) / 60) if datos_pool["last_ts"] else 9999
         recency = max(0, 1 - hace_min / 1440)  # decae a 0 en 24h
 
-        score = score_composite(wr_aprox, min(edge + 0.5, 1.0), recency, diversidad)
+        # Category focus: % de actividad en categorías con edge real (politics/geo/finance/crypto)
+        TARGET_CATS = ['iran', 'israel', 'trump', 'ukraine', 'russia', 'china', 'ceasefire',
+                       'election', 'will-', 'bitcoin', 'ethereum', 'crypto', 'fed-', 'tariff',
+                       'kharg', 'military', 'war', 'conflict', 'nato', 'nuclear']
+        NOISE_CATS  = ['lol-', 'cs2-', 'ufc-', 'nba-', 'nhl-', 'mlb-', 'nfl-', 'epl-',
+                       'temperature', 'highest-temp', 'dota', 'cbb-']
+        slugs_list = [a.get("slug", "") for a in acts if a.get("slug")]
+        target_count = sum(1 for s in slugs_list if any(t in s for t in TARGET_CATS))
+        noise_count  = sum(1 for s in slugs_list if any(n in s for n in NOISE_CATS))
+        total_slugs  = len(slugs_list) or 1
+        category_focus = max(0, min(1, (target_count - noise_count) / total_slugs))
+
+        score = score_composite(wr_aprox, min(edge + 0.5, 1.0), recency, diversidad, category_focus)
 
         # Estrellas basadas en score y señales
         if score >= 0.65 and len(datos_pool["mercados"]) >= 2:
@@ -371,7 +383,7 @@ def run(modo_auto: bool = False) -> list[dict]:
     print("🎯 SELECTOR v2 — Pipeline market-first + score propio")
     print(f"   Mercados: {MIN_HORAS}h–{MAX_HORAS}h | Vol≥${MIN_MARKET_VOL:,} | Spread≤{MAX_SPREAD}")
     print(f"   Wallets: max {MAX_BUYS_HOY} buys/día | WR≥{MIN_WR_APROX*100:.0f}% | hist≥{MIN_HIST_TRADES}")
-    print(f"   Score: 0.4×WR + 0.3×edge + 0.2×recency + 0.1×diversidad")
+    print(f"   Score: 0.35×WR + 0.25×edge + 0.20×recency + 0.10×div + 0.10×cat_focus")
     print("=" * 65)
     print()
 

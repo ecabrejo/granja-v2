@@ -72,6 +72,17 @@
       "resultado": "bueno \u2014 Masters golf, crypto, Bitcoin. 13 copias ejecutadas.",
       "reactivar": true,
       "notas": "Opera golf, crypto, LoL. Diversificado. avg=$8 por trade."
+    },
+    {
+      "addr": "0xe4b5414d5d17a869cf627a247b8bb0ecc11d56ab",
+      "fecha_inicio": "2026-04-14",
+      "fecha_fin": "2026-04-15",
+      "score_selector": 0.866,
+      "wr_aprox": 0.67,
+      "diversidad": 43,
+      "resultado": "mixto \u2014 opera UCL, tenis, deportes variados. No especialista en politics.",
+      "reactivar": false,
+      "notas": "avg=$3 por trade pero mezcla tenis/deportes con politics. category_focus bajo."
     }
   ],
   "candidatas_en_espera": [

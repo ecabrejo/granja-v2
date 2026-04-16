@@ -231,25 +231,9 @@ def on_worker_event(worker_id: str, event_type: str, data: dict):
             log.info(f"[{worker_id}] sin cash | ${bal:.2f}")
 
     elif event_type == "market_resolved":
-        ws.running = False
-        ws.paused  = True
-        bal_str = f"${ws.balance:.2f}" if ws.balance is not None else "N/A"
-        tg(
-            f"🏁 <b>[{worker_id}] Mercado resuelto</b>\n"
-            f"📌 {data['slug'][:40]}\n"
-            f"📊 Copies: {ws.copies}/{ws.signals} | 💰 Balance: {bal_str}\n\n"
-            f"⚠️ Recuerda hacer REDEEM en polymarket.com\n"
-            f"Luego usa los botones para continuar:",
-            buttons=[
-                [
-                    {"text": "🎯 Activar Selector", "callback_data": f"selector:{worker_id}"},
-                    {"text": "🔄 Reiniciar bot",    "callback_data": f"restart:{worker_id}"},
-                ],
-                [
-                    {"text": "⛔ Parar worker",     "callback_data": f"stop:{worker_id}"},
-                ]
-            ]
-        )
+        # Mercado resuelto — solo log, no pausar el worker
+        # Es normal que la wallet target opere en mercados que van resolviendo
+        log.info(f"[{worker_id}] mercado resuelto | {data['slug'][:40]} | worker sigue activo")
 
     elif event_type == "consecutive_errors":
         ws.running = False
@@ -469,6 +453,8 @@ def heartbeat_loop():
     Estado disponible siempre via /status bajo demanda.
     """
     from bot_granjav2 import get_balance
+    INACTIVITY_ALERT_H   = 6      # horas sin señales para alertar
+    MIN_CASH_FOR_ALERT   = 5.0    # solo alertar si hay cash suficiente
     while True:
         time.sleep(1800)
         for wid, ws in granja.items():
@@ -478,6 +464,33 @@ def heartbeat_loop():
             if bal is not None:
                 ws.balance = bal
             log.info(f"[{wid}] heartbeat | bal=${ws.balance:.2f} | cp={ws.copies}/{ws.signals}")
+
+            # Alerta de wallet inactiva con cash disponible
+            horas_sin_senal = (time.time() - ws.wallet_last_activity_ts) / 3600
+            cash = ws.balance or 0
+            ya_alertado = getattr(ws, "_inactivity_cash_alerted", False)
+
+            if horas_sin_senal > INACTIVITY_ALERT_H and cash >= MIN_CASH_FOR_ALERT and not ya_alertado:
+                ws._inactivity_cash_alerted = True
+                try:
+                    cfg = json.loads((Path(ws.worker_dir) / "config.json").read_text())
+                    wallets = cfg.get("target_wallets", [cfg.get("target_wallet", "?")])
+                    wallet_str = wallets[0][:16] + "..." if wallets else "?"
+                except:
+                    wallet_str = "?"
+                tg(
+                    f"⏰ <b>[{wid}] Wallet inactiva {horas_sin_senal:.0f}h</b>\n"
+                    f"👛 {wallet_str}\n"
+                    f"💵 Cash disponible: ${cash:.2f}\n\n"
+                    f"La granja tiene capital pero la wallet no opera.\n"
+                    f"¿Corremos el selector?",
+                    buttons=[[
+                        {{"text": "🎯 Buscar nueva wallet", "callback_data": f"selector:{wid}"}},
+                        {{"text": "⏸ Ignorar por ahora",   "callback_data": f"keep:{wid}"}},
+                    ]]
+                )
+            elif horas_sin_senal <= INACTIVITY_ALERT_H:
+                ws._inactivity_cash_alerted = False  # reset si vuelve a operar
 
 # ── Listener de comandos Telegram ─────────────────────────
 _tg_offset = 0
@@ -708,3 +721,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

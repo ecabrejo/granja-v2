@@ -231,9 +231,25 @@ def on_worker_event(worker_id: str, event_type: str, data: dict):
             log.info(f"[{worker_id}] sin cash | ${bal:.2f}")
 
     elif event_type == "market_resolved":
-        # Mercado resuelto — solo log, no pausar el worker
-        # Es normal que la wallet target opere en mercados que van resolviendo
-        log.info(f"[{worker_id}] mercado resuelto | {data['slug'][:40]} | worker sigue activo")
+        ws.running = False
+        ws.paused  = True
+        bal_str = f"${ws.balance:.2f}" if ws.balance is not None else "N/A"
+        tg(
+            f"🏁 <b>[{worker_id}] Mercado resuelto</b>\n"
+            f"📌 {data['slug'][:40]}\n"
+            f"📊 Copies: {ws.copies}/{ws.signals} | 💰 Balance: {bal_str}\n\n"
+            f"⚠️ Recuerda hacer REDEEM en polymarket.com\n"
+            f"Luego usa los botones para continuar:",
+            buttons=[
+                [
+                    {"text": "🎯 Activar Selector", "callback_data": f"selector:{worker_id}"},
+                    {"text": "🔄 Reiniciar bot",    "callback_data": f"restart:{worker_id}"},
+                ],
+                [
+                    {"text": "⛔ Parar worker",     "callback_data": f"stop:{worker_id}"},
+                ]
+            ]
+        )
 
     elif event_type == "consecutive_errors":
         ws.running = False
@@ -496,7 +512,15 @@ def heartbeat_loop():
 _tg_offset = 0
 
 def poll_telegram():
+    """
+    Long-polling de Telegram con backoff exponencial.
+    Timeouts son normales en long-polling — no son errores críticos.
+    Backoff evita spam de reconexiones cuando Telegram está lento.
+    """
     global _tg_offset
+    _consecutive_errors = 0
+    _MAX_BACKOFF = 60  # máximo 60s entre reintentos
+
     while True:
         try:
             r = requests.get(
@@ -506,14 +530,23 @@ def poll_telegram():
                 timeout=40
             )
             if not r.ok:
-                time.sleep(5)
+                _consecutive_errors += 1
+                wait = min(5 * _consecutive_errors, _MAX_BACKOFF)
+                time.sleep(wait)
                 continue
+            _consecutive_errors = 0  # reset al éxito
             for upd in r.json().get("result", []):
                 _tg_offset = upd["update_id"] + 1
                 handle_update(upd)
+        except requests.exceptions.ReadTimeout:
+            # Timeout es normal en long-polling — no loguear como error
+            _consecutive_errors = 0
+            time.sleep(1)
         except Exception as e:
-            log.warning(f"TG_POLL_ERROR | {e}")
-            time.sleep(5)
+            _consecutive_errors += 1
+            wait = min(5 * _consecutive_errors, _MAX_BACKOFF)
+            log.warning(f"TG_POLL_ERROR | {e} | reintentando en {wait}s")
+            time.sleep(wait)
 
 def handle_update(upd: dict):
     if "callback_query" in upd:

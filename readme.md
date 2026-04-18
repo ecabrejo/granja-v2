@@ -1,5 +1,5 @@
 # La Granja V2 — Registro de Operaciones y Aprendizajes
-**Última actualización:** 2026-04-04  
+**Última actualización:** 2026-04-14  
 **Estado:** 🟢 Operativa  
 **Servidor:** DigitalOcean Ubuntu — IP 64.23.187.205 (VPN Netherlands activa)
 
@@ -57,17 +57,19 @@ El segundo aprendizaje igual de importante: **el mayor enemigo no fue la falta d
 
 ---
 
-## Estado financiero actual (2026-04-04)
+## Estado financiero actual (2026-04-14)
 
 | Concepto | Valor |
 |---|---|
 | Capital inicial | ~$50 |
-| Portfolio total | ~$85 |
-| Cash disponible | ~$25 |
-| Posiciones abiertas | ~$60 |
-| PnL all-time | -$7 (lastre de posiciones antiguas) |
+| Portfolio total | ~$55 |
+| Cash disponible | ~$7 |
+| PnL actual | +$7.95 |
+| Hito actual | Camino a $100 → $200 |
 
-El PnL negativo all-time refleja posiciones de las primeras semanas cuando operábamos sin filtros adecuados — mercados de 30-275 días que aún no resuelven. El capital efectivo creció de $50 a $85.
+Dos posiciones cerradas pendientes de redención en Polymarket (bug de la plataforma):
+- `Iran x Israel/US conflict ends by April 7` → +$14.84
+- `Will Trump visit China by May 31` → +$0.56
 
 ---
 
@@ -83,30 +85,32 @@ No existe la wallet perfecta ni el mercado perfecto. La tarea es encontrar walle
 1. Gamma API → mercados activos válidos (4h-168h, vol>$50k)
 2. Data API /trades → wallets activas en esos mercados (últimas 24h)
 3. Filtrar bots (>5 buys en un solo mercado en un día)
-4. Para cada candidata → historial /activity → score propio
-5. Score: 0.4×WR + 0.3×edge + 0.2×recency + 0.1×diversidad
-6. Sistema de estrellas 1-4 según calidad de señales
-7. Top 3 → Gerencia aprueba vía Telegram
+4. Filtrar whales (avg_size >$50 → descartar)
+5. Para cada candidata → historial /activity → score propio
+6. Score: 0.35×WR + 0.25×edge + 0.20×recency + 0.10×diversidad + 0.10×category_focus
+7. Diversificación: máx 3 wallets por mercado en el top 20
+8. Sistema de estrellas 1-4 según calidad de señales
+9. Top candidatos → Gerencia aprueba vía Telegram
 ```
 
 ### Filtros de mercado
-- Duración: 4h a 168h restantes (no mercados casi resueltos ni demasiado largos)
+- Duración: 4h a 168h restantes
 - Volumen 24h: >$50,000
 - Midpoint: entre 0.10 y 0.90 (mercado genuinamente incierto)
 - Excluidos: updown, crypto-5m, crypto-15m
 
 ### Filtros de wallet
-- Historial mínimo: 50 trades (filtra cuentas nuevas)
+- Historial mínimo: 50 trades
 - WR aproximado: >50%
-- Máximo 5 buys por día en un solo mercado (filtra bots)
-- Diversidad: se valora positivamente operar en muchos mercados
+- Máximo 5 buys por día en un solo mercado (anti-bot)
+- avg_size <$50 (anti-whale — implementado 2026-04-11)
+- category_focus: premia wallets concentradas en politics/geo/finance/crypto
 
-### Sistema de estrellas
-| Estrellas | Criterio |
-|---|---|
-| ⭐⭐ | Activa en mercado válido ahora (base) |
-| ⭐⭐⭐ | Además en leaderboard reciente con PnL>0 |
-| ⭐⭐⭐⭐ | Además 3+ BUYs en el mercado (convicción) |
+### Categorías bloqueadas en el bot (bot_granjav2.py)
+Señales ignoradas automáticamente si el slug contiene:
+`lol-, cs2-, ufc-, cbb-, nba-, nhl-, mlb-, nfl-, epl-, temperature, highest-temp`
+
+Permitido: tenis (atp-, wta-), cricket, UCL/Champions League, política, geopolítica, crypto.
 
 ---
 
@@ -151,6 +155,12 @@ En Data API trades, `maker` y `taker` están vacíos. `proxyWallet` es el campo 
 
 **Spread del orderbook en Polymarket siempre ~0.98**  
 Los market makers ponen órdenes límite lejos del precio. El spread no es una métrica útil. El midpoint sí lo es.
+
+**Filtro de categorías por slug**  
+La categoría no viene como campo en Gamma API. El slug contiene suficiente información — `lol-`, `nba-`, `temperature` etc. son detectables por prefijo. Implementado en bot_granjav2.py.
+
+**Consulta de expertos (Grok + Opus, abril 2026)**  
+Consenso de tres fuentes independientes: priorizar Politics/Geopolitics donde gap maker-taker es 1.02pp vs 2.23pp+ en deportes. Implementado via `category_focus` en el score del selector.
 
 ---
 
@@ -248,18 +258,21 @@ Los market makers ponen órdenes límite lejos del precio. El spread no es una m
 - [x] Filtro de una posición por mercado
 - [x] Notificaciones Telegram silenciosas
 - [x] wallet_pool.json con historial de wallets usadas
+- [x] Diversificación en selector (máx 3 wallets por mercado)
+- [x] category_focus en score del selector (politics/geo prioritario)
+- [x] Categorías bloqueadas en bot (deportes US, esports, temperatura)
+- [x] Alerta de wallet inactiva con cash disponible (>6h + >$5 → Telegram)
 - [ ] Daily report 08:00 UTC (solo si hubo actividad)
 - [ ] Drawdown protection — pausa si balance cae 20% vs inicio del ciclo
 - [ ] Fix TG_POLL_ERROR — Claudio no debe caer por timeouts de Telegram
-- [ ] Log de decisiones cronológico
 
 ### 🎯 Hito $200 — Escalar con seguridad
 **Foco: segundo worker + mejoras de infraestructura**
-- [ ] **worker_02** — segunda wallet siguiendo mercado distinto simultáneamente
-- [ ] **Sizing proporcional** — `trade_usd = max($1, cash_disponible * 0.03)` en lugar de $1 fijo. Nota: Polymarket tiene orden mínima de $1 — no implementar antes de tener capital suficiente para que el 3% supere ese mínimo consistentemente
-- [ ] **Lifecycle GREEN/YELLOW/RED** — monitoreo WR del worker cada 5 min, alerta si cae <55%, pausa si cae <40%
-- [ ] **Redeem semi-automático** — detectar posiciones ganadoras resueltas y alertar con botón de confirmación
-- [ ] **Filtro de categoría en selector** — priorizar Politics/Finance/Weather sobre Sports/Entertainment
+- [ ] **worker_02** — segunda wallet simultánea (activar cuando portfolio >$150)
+- [ ] **Sizing proporcional** — `trade_usd = max($1, cash_disponible * 0.03)`
+- [ ] **Lifecycle GREEN/YELLOW/RED** — monitoreo WR del worker, alerta <55%, pausa <40%
+- [ ] **Redeem semi-automático** — detectar posiciones ganadoras resueltas con botón Telegram
+- [x] **Filtro de categoría en selector** — category_focus implementado 2026-04-14
 
 ### 🎯 Hito $500 — Optimización avanzada
 **Foco: edge más sofisticado**
@@ -279,12 +292,18 @@ Los market makers ponen órdenes límite lejos del precio. El spread no es una m
 ## Notas técnicas importantes
 
 - **NegRisk fix:** 90%+ de mercados Polymarket son NegRisk. Fix requiere `OrderArgs + CreateOrderOptions(tick_size, neg_risk=True)`
-- **Latencia Data API:** 2-6 min de lag — incompatible con mercados <72h para copy-trading
+- **Latencia Data API:** 2-6 min de lag — incompatible con mercados muy cortos para copy-trading
 - **WebSocket:** entrega cambios de orderbook, no eventos de wallet específicos
 - **polymarketanalytics.com:** requiere `User-Agent: Mozilla/5.0 Macintosh`
-- **Venv:** `/root/granja-v2/venv/` (symlink → `/root/backups/estebans-oldfarm/venv`)
-- **NordVPN:** activa Netherlands — causa fallos SSH si se conecta por IP real
+- **Venv:** `/root/granja-v2/venv/` (symlink → `/root/shared/venv`)
+- **NordVPN:** activa Netherlands — SSH por IP real 64.23.187.205, no por IP del VPN
+- **Gamma API categoría:** no viene como campo directo — usar slug keywords para clasificar
+- **Temperatura en Polymarket:** WR=25% en nuestro historial vs 30.8% otros — bloquear completamente
+- **Gap maker-taker (paper Becker 2026):** Politics=1.02pp, Sports=2.23pp+, Temperature=2.57pp — priorizar politics
+- **GitHub:** 5 repos privados (granja-v2, granja-meteo, granja-geopolitics, sports-trader-nba, sports-trader-soccer)
 
 ---
 
 *Documento vivo — actualizar con cada aprendizaje significativo*
+
+

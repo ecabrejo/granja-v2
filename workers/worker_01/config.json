@@ -1,9 +1,9 @@
 {
   "target_wallets": [
-    "0xfcc096cfe75de4b14c189c02dbfafc535b8a9c8f"
+    "0xad5353afe30c2da57709e2704ef3ccdcf67eef24"
   ],
   "basket_min_confirmations": 1,
   "poll_seconds": 10,
-  "market": "will-rory-mcilroy-win-the-2026-masters-tournament",
-  "trade_usd": 1.0
+  "market": "will-the-us-x-iran-ceasefire-be-extended-by-april-21-2026-365",
+  "trade_usd": 3.0
 }

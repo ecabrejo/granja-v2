@@ -130,6 +130,23 @@ def get_market_info(token_id: str) -> dict | None:
     except:
         return None
 
+def get_midpoint(token_id: str) -> float | None:
+    """Retorna midpoint actual desde CLOB /book. None si falla."""
+    try:
+        r = requests.get(f"{CLOB_API}/book", params={"token_id": str(token_id)}, timeout=5)
+        if not r.ok:
+            return None
+        data = r.json()
+        bids = data.get("bids", [])
+        asks = data.get("asks", [])
+        best_bid = float(bids[0]["price"]) if bids else None
+        best_ask = float(asks[0]["price"]) if asks else None
+        if best_bid and best_ask:
+            return (best_bid + best_ask) / 2
+        return None
+    except:
+        return None
+
 def has_orderbook(token_id: str) -> bool:
     """Verifica que el token tiene al menos un ask activo."""
     try:
@@ -411,7 +428,9 @@ def run_worker(worker_dir: str, log: logging.Logger, event_callback, stop_event=
                     # Categorias sin edge estructural (Becker 2026 — gap maker-taker alto)
                     BLOCKED_CATS = ['lol-', 'cs2-', 'ufc-', 'cbb-',
                                     'temperature', 'highest-temp',
-                                    'nba-', 'nhl-', 'mlb-', 'nfl-', 'epl-']
+                                    'nba-', 'nhl-', 'mlb-', 'nfl-', 'epl-',
+                                    'of-tweets', 'truth-social', '-posts-this-week',
+                                    'will-nyc-have', 'will-seattle-have', 'will-chicago-have']
                     if any(b in slug for b in BLOCKED_CATS):
                         log.info(f"[{worker_id}] SKIP | cat_bloqueada | {slug[:40]}")
                         continue
@@ -431,6 +450,14 @@ def run_worker(worker_dir: str, log: logging.Logger, event_callback, stop_event=
                         log.warning(f"[{worker_id}] SKIP | no_orderbook")
                         event_callback(worker_id, "skip", {"reason": "no_orderbook", "slug": slug})
                         continue
+
+                    # ── Drift filter — skip si precio se movió >0.10 desde entrada de target ──
+                    midpoint_now = get_midpoint(clob_token)
+                    if midpoint_now is not None:
+                        drift = midpoint_now - float(price)
+                        if drift > 0.10:
+                            log.info(f"[{worker_id}] SKIP | drift_alto | {drift:.3f} | {slug[:40]}")
+                            continue
 
                     ok, detail = execute_buy(worker_dir, clob_token, trade_usd)
                     if ok:

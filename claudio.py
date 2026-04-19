@@ -231,24 +231,19 @@ def on_worker_event(worker_id: str, event_type: str, data: dict):
             log.info(f"[{worker_id}] sin cash | ${bal:.2f}")
 
     elif event_type == "market_resolved":
-        ws.running = False
-        ws.paused  = True
+        # Notificar una sola vez por mercado — evitar loop de spam
+        if not hasattr(ws, "_resolved_notified"):
+            ws._resolved_notified = set()
+        slug_resolved = data.get("slug", "")
+        if slug_resolved in ws._resolved_notified:
+            return
+        ws._resolved_notified.add(slug_resolved)
         bal_str = f"${ws.balance:.2f}" if ws.balance is not None else "N/A"
         tg(
-            f"🏁 <b>[{worker_id}] Mercado resuelto</b>\n"
-            f"📌 {data['slug'][:40]}\n"
-            f"📊 Copies: {ws.copies}/{ws.signals} | 💰 Balance: {bal_str}\n\n"
-            f"⚠️ Recuerda hacer REDEEM en polymarket.com\n"
-            f"Luego usa los botones para continuar:",
-            buttons=[
-                [
-                    {"text": "🎯 Activar Selector", "callback_data": f"selector:{worker_id}"},
-                    {"text": "🔄 Reiniciar bot",    "callback_data": f"restart:{worker_id}"},
-                ],
-                [
-                    {"text": "⛔ Parar worker",     "callback_data": f"stop:{worker_id}"},
-                ]
-            ]
+            f"\U0001f3c1 <b>[{worker_id}] Mercado resuelto</b>\n"
+            f"\U0001f4cc {slug_resolved[:40]}\n"
+            f"\U0001f4ca Copies: {ws.copies}/{ws.signals} | \U0001f4b0 Balance: {bal_str}\n\n"
+            f"\u26a0\ufe0f Recuerda hacer REDEEM en polymarket.com",
         )
 
     elif event_type == "consecutive_errors":
@@ -501,8 +496,8 @@ def heartbeat_loop():
                     f"La granja tiene capital pero la wallet no opera.\n"
                     f"¿Corremos el selector?",
                     buttons=[[
-                        {{"text": "🎯 Buscar nueva wallet", "callback_data": f"selector:{wid}"}},
-                        {{"text": "⏸ Ignorar por ahora",   "callback_data": f"keep:{wid}"}},
+                        {"text": "🎯 Buscar nueva wallet", "callback_data": f"selector:{wid}"},
+                        {"text": "⏸ Ignorar por ahora",   "callback_data": f"keep:{wid}"},
                     ]]
                 )
             elif horas_sin_senal <= INACTIVITY_ALERT_H:

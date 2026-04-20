@@ -421,7 +421,7 @@ def run_worker(worker_dir: str, log: logging.Logger, event_callback, stop_event=
                 # ── Mercado demasiado lejano (> 48h) ──
                 if info["end_ts"] > 0:
                     horas_restantes = (info["end_ts"] - time.time()) / 3600
-                    if horas_restantes > 168:
+                    if horas_restantes > 222:
                         log.info(f"[{worker_id}] SKIP | demasiado_lejano | {horas_restantes:.0f}h | {slug[:40]}")
                         continue
 

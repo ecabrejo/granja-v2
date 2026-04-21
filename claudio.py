@@ -231,20 +231,8 @@ def on_worker_event(worker_id: str, event_type: str, data: dict):
             log.info(f"[{worker_id}] sin cash | ${bal:.2f}")
 
     elif event_type == "market_resolved":
-        # Notificar una sola vez por mercado — evitar loop de spam
-        if not hasattr(ws, "_resolved_notified"):
-            ws._resolved_notified = set()
         slug_resolved = data.get("slug", "")
-        if slug_resolved in ws._resolved_notified:
-            return
-        ws._resolved_notified.add(slug_resolved)
-        bal_str = f"${ws.balance:.2f}" if ws.balance is not None else "N/A"
-        tg(
-            f"\U0001f3c1 <b>[{worker_id}] Mercado resuelto</b>\n"
-            f"\U0001f4cc {slug_resolved[:40]}\n"
-            f"\U0001f4ca Copies: {ws.copies}/{ws.signals} | \U0001f4b0 Balance: {bal_str}\n\n"
-            f"\u26a0\ufe0f Recuerda hacer REDEEM en polymarket.com",
-        )
+        log.info(f"[{worker_id}] market_resolved | {slug_resolved[:40]}")
 
     elif event_type == "consecutive_errors":
         ws.running = False
@@ -460,14 +448,32 @@ def apply_proposal(worker_id: str, candidato_idx: int = 0) -> bool:
 def heartbeat_loop():
     """
     Heartbeat silencioso — solo log interno cada 30 min.
+    Daily report a las 05:00 UTC (08:00 Kuwait) si hubo actividad.
     Telegram solo habla cuando importa.
-    Estado disponible siempre via /status bajo demanda.
     """
     from bot_granjav2 import get_balance
-    INACTIVITY_ALERT_H   = 6      # horas sin señales para alertar
-    MIN_CASH_FOR_ALERT   = 5.0    # solo alertar si hay cash suficiente
+    import datetime
+    INACTIVITY_ALERT_H   = 6
+    MIN_CASH_FOR_ALERT   = 5.0
+    _last_daily_report   = 0
     while True:
         time.sleep(1800)
+        # Daily report 05:00 UTC
+        now_utc = datetime.datetime.utcnow()
+        if now_utc.hour == 5 and now_utc.minute < 30:
+            ts_today = datetime.datetime(now_utc.year, now_utc.month, now_utc.day, 5, 0).timestamp()
+            if _last_daily_report < ts_today:
+                _last_daily_report = time.time()
+                lines = ["\U0001f331 <b>Granja — Reporte diario 08:00 Kuwait</b>\n"]
+                for wid, ws in granja.items():
+                    estado = "\U0001f7e2 activo" if ws.running else "\U0001f534 detenido"
+                    bal = f"${ws.balance:.2f}" if ws.balance else "N/A"
+                    lines.append(
+                        f"[{wid}] {estado}\n"
+                        f"  Copias hoy: {ws.copies} | Balance: {bal}\n"
+                        f"  Errores: {ws.errors}"
+                    )
+                tg("\n".join(lines))
         for wid, ws in granja.items():
             if not ws.running:
                 continue

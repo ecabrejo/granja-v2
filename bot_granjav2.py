@@ -430,7 +430,9 @@ def run_worker(worker_dir: str, log: logging.Logger, event_callback, stop_event=
                                     'temperature', 'highest-temp',
                                     'nba-', 'nhl-', 'mlb-', 'nfl-', 'epl-',
                                     'of-tweets', 'truth-social', '-posts-this-week',
-                                    'will-nyc-have', 'will-seattle-have', 'will-chicago-have']
+                                    'will-nyc-have', 'will-seattle-have', 'will-chicago-have',
+                                    'will-trump-say-', 'will-trump-name-', 'trumps-tie-',
+                                    '-during-whca-', 'will-trump-post-']
                     if any(b in slug for b in BLOCKED_CATS):
                         log.info(f"[{worker_id}] SKIP | cat_bloqueada | {slug[:40]}")
                         continue

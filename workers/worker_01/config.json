@@ -1,9 +1,9 @@
 {
   "target_wallets": [
-    "0xad5353afe30c2da57709e2704ef3ccdcf67eef24"
+    "0xa509ae942ac8d8bc3f8c5df30cb6ae2c9b13ae46"
   ],
   "basket_min_confirmations": 1,
   "poll_seconds": 10,
-  "market": "will-the-us-x-iran-ceasefire-be-extended-by-april-21-2026-365",
-  "trade_usd": 3.0
+  "market": "us-x-iran-diplomatic-meeting-by-april-30-2026-299-459-263-225",
+  "trade_usd": 1.0
 }

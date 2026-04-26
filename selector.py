@@ -216,6 +216,17 @@ def calcular_score_wallet(addr: str, datos_pool: dict) -> dict | None:
         if updown_ratio > 0.3:
             return None
 
+        # Filtrar bots de deportes — historial >30% deportes = no copiar
+        SPORTS_PREFIXES = ['mls-', 'nba-', 'nfl-', 'mlb-', 'nhl-', 'epl-',
+                           'mex-', 'bun-', 'lol-', 'dota', 'kor-', 'aus-',
+                           'uwcl-', 'atp-', 'wta-', 'ufc-', 'cbb-', 'cricpsl-',
+                           'ipl-', 't20-', 'madrid-open', 'bol1-']
+        sports_ratio = sum(1 for a in acts if any(
+            a.get("slug", "").lower().startswith(p) for p in SPORTS_PREFIXES
+        )) / len(acts)
+        if sports_ratio > 0.3:
+            return None
+
         # Filtrar whales — size promedio > $50 por BUY indica capital incopiable
         buys_all = [a for a in acts if a.get("side", "").upper() == "BUY"]
         sizes = [float(a.get("usdcSize", 0) or 0) for a in buys_all if float(a.get("usdcSize", 0) or 0) > 0]

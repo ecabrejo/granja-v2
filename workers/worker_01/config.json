@@ -1,9 +1,9 @@
 {
   "target_wallets": [
-    "0xa509ae942ac8d8bc3f8c5df30cb6ae2c9b13ae46"
+    "0x06dc51826bc524d9a83770e7de9dd7e005b04524"
   ],
   "basket_min_confirmations": 1,
   "poll_seconds": 10,
-  "market": "us-x-iran-diplomatic-meeting-by-april-30-2026-299-459-263-225",
+  "market": "crypto-predictions",
   "trade_usd": 1.0
 }
